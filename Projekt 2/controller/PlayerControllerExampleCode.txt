@@ -1,0 +1,153 @@
+    /**
+     * @param playerName String
+     * @param playerType PlayerType (enum)
+     * @author marcel
+     * create a Player
+     * test if the PlayerColor is already in use
+     * test if the PlayerName is already in use
+     * It can not be created more than 4 Players into one Collection/List
+     */
+    public boolean createPlayer(String playerName, PlayerType playerType, ColourType playerColour) {
+        if (players == null) {
+            players = new LinkedList<>();
+        }
+
+        if (players.size() < PLAYER_SIZE_FOUR) {
+            if (playerName != null && playerType != null && playerColour != null) {
+                for (Player player : players) {
+                    //namecheck
+                    if (player.getName().equals(playerName)) {
+                        playerAUI.showPlayerControllerError("Name bereits vergeben!");
+                        return false;
+                    }
+                    //colourcheck
+                    if (player.getColourType().equals(playerColour)) {
+                        playerAUI.showPlayerControllerError("Farbe ist bereits belegt!");
+                        return false;
+                    }
+                }
+                Player player = new Player(playerName, playerType, playerColour);
+                players.add(player);
+            } else {
+                playerAUI.showPlayerControllerError("Beim Erstellen des Spielers ist ein Fehler aufgetreten");
+                return false;
+            }
+        } else {
+            playerAUI.showPlayerControllerError("Maximale Anzahl an Spielern erreicht.");
+            return false;
+        }
+        playerAUI.refreshPlayerList();
+        return true;
+    }
+
+    /**
+     * Removes the player from the player list
+     * @param player player to be removes
+     * @return true if player successful removes from left, false otherwise
+     */
+    public boolean removePlayer(Player player) {
+        if(player != null) {
+            return players.remove(player);
+        }
+        return false;
+    }
+
+    /**
+     * @param dominoID int
+     * @author Marcel
+     * reserve a Domino (from choice[3..7]) (placing a King on top of it)
+     * should check if the Domino can be reserved (if not -> errorMessage)
+     */
+    public void reserveDomino(final int dominoID) {
+        List<Domino> choice = mainController.getKingDomino().getCurrentGame().getChoice();
+        Player currentPlayer = mainController.getKingDomino().getCurrentGame().getCurrentPlayer();
+        // List<Domino> current = mainController.getKingDomino().getCurrentGame().getCurrent();
+
+        for (Domino domino : choice) {
+            if (domino.getNumber() == dominoID && domino.getPlayer() == null) {
+                domino.setPlayer(currentPlayer); // TODO fix (setPlayer after cloning)
+                mainController.getGameController().turnEnd();
+                gameAUI.addLogs(currentPlayer.getName() + " hat " + domino.getTiles().getFirst().getLandscapeType() +"&"+ domino.getTiles().getSecond().getLandscapeType() + "\n reserviert.");
+                return;
+            }
+        }
+        gameAUI.refreshCurrentPlayer();
+        gameAUI.refreshChoice();
+        gameAUI.refreshGrid();
+
+        gameAUI.showErrorMessage("Stein bereits belegt!");
+    }
+
+    public boolean isPlayerInCurrent() {
+        List<Domino> current = mainController.getKingDomino().getCurrentGame().getCurrent();
+        List<Domino> choice = mainController.getKingDomino().getCurrentGame().getChoice();
+        Player currentPlayer = mainController.getKingDomino().getCurrentGame().getCurrentPlayer();
+
+        if (mainController.getKingDomino().getCurrentGame().getFixedPlayersList().size() == TWO) {
+            int countInCurrent = 0;
+            for (Domino domino : current) {
+                if (domino.getPlayer().equals(currentPlayer)) countInCurrent++;
+            }
+            int countInChoice = 0;
+            for (Domino domino : choice) {
+                if (domino.getPlayer() != null && domino.getPlayer().equals(currentPlayer)) countInChoice++;
+            }
+            return countInCurrent + countInChoice == TWO;
+        } else {
+            for (Domino domino : current) {
+                if (domino.getPlayer().equals(currentPlayer)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * @author Marcel
+     * removes the Domino, instead of placing it in the Players Grid (is a choice the Player can make)
+     */
+    public void removeDomino(final int dominoID) {
+        GameState newGameState = mainController.getKingDomino().getCurrentGame().clone();
+        mainController.getKingDomino().setCurrentGame(newGameState);
+        List<Domino> current = mainController.getKingDomino().getCurrentGame().getCurrent();
+        Player currentPlayer = mainController.getKingDomino().getCurrentGame().getCurrentPlayer();
+        for (Domino domino : current) {
+            if (domino.getNumber() == dominoID && domino.getPlayer().equals(currentPlayer)) {
+                //currentPlayer.getGrid().getScore();
+                domino.setPlayer(null);
+                current.remove(domino);
+                gameAUI.addLogs(currentPlayer.getName() + " hat Domino" +domino.getNumber()+ " verworfen");
+                //currentPlayer.getGrid().getScore();
+
+                gameAUI.refreshChoice();
+
+                if(mainController.getKingDomino().getCurrentGame().getDominoBag().isEmpty() && mainController.getKingDomino().getCurrentGame().getChoice().isEmpty()) {
+                    if(mainController.getKingDomino().getCurrentGame().getCurrent().isEmpty()) {
+                        mainController.getGameController().endGame();
+                    } else {
+                        //currentPlayer.getGrid().getScore();
+                        //System.out.println("");
+                        mainController.getGameController().turnEnd();
+                    }
+                }
+
+                return;
+            }
+        }
+        gameAUI.refreshCurrentPlayer();
+        gameAUI.refreshChoice();
+        gameAUI.refreshGrid();
+
+        gameAUI.showErrorMessage("Stein bereits belegt!");
+    }
+
+    /**
+     * sets the current Player not Highscoreable and ends the game
+     */
+    public void giveUp() {
+        Player currentPlayer =mainController.getKingDomino().getCurrentGame().getCurrentPlayer();
+        currentPlayer.setHighscoreable(false);
+        //System.out.println(currentPlayer.getName() + "is highscorable" + currentPlayer.isHighscoreable());
+        mainController.getGameController().endGame();
+    }

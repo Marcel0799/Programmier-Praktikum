@@ -1,0 +1,125 @@
+    /**
+     * Creates a new game
+     *
+     * @param allPlayers    list of players.
+     * @param shuffleCards  boolean to choose if the dominos are getting shuffled.
+     * @param csvImportPath importpath of the card data.
+     * @param settings      gamesettings.
+     */
+    public boolean createGame(LinkedList<Player> allPlayers, boolean shuffleCards, String csvImportPath, boolean[] settings) {
+        LinkedList<Player> playerOrder = new LinkedList<>();
+        if (allPlayers != null && allPlayers.size() <= 4 & allPlayers.size() > 1) {
+
+            if (allPlayers.size() != 2 && settings[1]) {
+                playerAUI.showPlayerControllerError("Das große Duell kann nur mit zwei Spielern gespielt werden!");
+
+                mainController.getPlayerController().setPlayers(null);
+                playerAUI.refreshPlayerList();
+                return false;
+            }
+
+            //Players übertragen & generieren
+            if (allPlayers.size() == TWO_PLAYERS) {
+                for (Player player : allPlayers) {
+                    Grid grid = new Grid(settings[1]);
+                    player.setGrid(grid);
+                }
+                playerOrder.add(allPlayers.get(0));
+                playerOrder.add(allPlayers.get(1));
+                playerOrder.add(allPlayers.get(1));
+                playerOrder.add(allPlayers.get(0));
+            } else {
+                for (Player player : allPlayers) {
+                    Grid grid = new Grid(settings[1]);
+                    player.setGrid(grid);
+                    playerOrder.add(player);
+                }
+            }
+
+            //Dominos laden
+            LinkedList<Domino> bag = throwDominosAway(getDominos(shuffleCards, csvImportPath), settings[1], allPlayers.size());
+
+            //Choice setzen
+            LinkedList<Domino> choice = setChoice(allPlayers, bag);
+
+            //GameState setzen
+            GameState firstGame = new GameState(playerOrder, settings, bag, choice, allPlayers);
+            mainController.getKingDomino().setCurrentGame(firstGame);
+
+            //Wenn die Spieleanzahl noch nie verändert wurde, dann setzen wir hier initial die Spielerunden
+            if (mainController.getKingDomino().getCurrentGame().getGamesToPlay() == -1) {
+                if (mainController.getKingDomino().getCurrentGame().isDynasty()) {
+                    mainController.getKingDomino().getCurrentGame().setGamesToPlay(3);
+                } else {
+                    mainController.getKingDomino().getCurrentGame().setGamesToPlay(1);
+                }
+            }
+
+        } else {
+            playerAUI.showPlayerControllerError("Fehlerhafte Anzahl an Spielern!");
+            return false;
+        }
+
+        gameAUI.addLogs("Spiel wurde gestartet.");
+        return true;
+    }
+
+    /**
+     * Gets the first Dominos from the bag and sets them to the Choicelist
+     *
+     * @param allPlayers
+     * @param bag
+     * @return LinkedList with the choosable Dominos
+     */
+    public LinkedList<Domino> setChoice(LinkedList<Player> allPlayers, LinkedList<Domino> bag) {
+        LinkedList<Domino> choice = new LinkedList<>();
+        if (!bag.isEmpty()) {
+            int border = allPlayers.size() % 2 == 0 ? 4 : 3;
+            for (int i = 0; i < border; i++) {
+                Domino domino = bag.removeFirst();
+                choice.add(domino);
+            }
+        }
+        return choice;
+    }
+
+    /**
+     * Loads the Dominos into the Bag and shuffles them
+     *
+     * @param shuffleCards
+     * @param csvImportPath
+     * @return LinkedList with all available Dominos
+     */
+    private LinkedList<Domino> getDominos(boolean shuffleCards, String csvImportPath) {
+        LinkedList<Domino> bag = new LinkedList<>();
+        if (!csvImportPath.equals("")) {
+            bag = mainController.getIOController().loadCardSet(csvImportPath);
+            if (shuffleCards) {
+                Collections.shuffle(bag);
+            }
+        } else {
+            DominoFactory dominoFactory = new DominoFactory();
+            for (int i = 1; i < 49; i++) {
+                bag.add(dominoFactory.getDomino(i));
+            }
+            if(shuffleCards) {Collections.shuffle(bag); }
+            playerAUI.showPlayerControllerError("Dominos wurden ohne CSV Import generiert!");
+        }
+        return bag;
+    }
+
+    LinkedList<Domino> throwDominosAway(LinkedList<Domino> bag, boolean isBigDuel, int playerCount) {
+        int throwAwayCount = 0;
+        if (!isBigDuel) { //Wenn es das große Duell ist, dann wirf nichts weg
+            if (playerCount == 2) throwAwayCount = 24;      //Bei zwei Spielern wirf 24 Dominos weg
+            else if (playerCount == 3) throwAwayCount = 12; //Bei 3 Spielern wirf 12 Dominos weg
+        }
+        int bagSize = bag.size() - 1;
+        for (int i = 0; i < throwAwayCount; i++) {
+            bag.remove(bagSize - i);
+        }
+       //System.out.println("Bag size: " + bag.size());
+
+
+        return bag;
+    }
